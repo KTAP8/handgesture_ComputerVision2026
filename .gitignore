@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Python ML / data
+*.task
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.h5
+*.npz
+*.npy
+
+# Logs & temp
+*.log
+*.tmp
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
