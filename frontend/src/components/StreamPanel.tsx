@@ -5,9 +5,17 @@ import GestureLabel from "./GestureLabel";
 const RETRY_INTERVAL_MS = 3000;
 
 export default function StreamPanel() {
+  // Delay mounting the <img> until after the page has fully rendered.
+  // This prevents the MJPEG stream (an infinite open connection) from
+  // keeping the browser tab spinner spinning forever.
+  const [mounted, setMounted] = useState(false);
   const [streamKey, setStreamKey] = useState(0);
   const [showError, setShowError] = useState(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const scheduleRetry = () => {
     setShowError(true);
@@ -34,13 +42,15 @@ export default function StreamPanel() {
           </p>
         </div>
       )}
-      <img
-        key={streamKey}
-        src={STREAM_URL}
-        alt="Webcam feed"
-        style={{ display: showError ? "none" : "block" }}
-        onError={scheduleRetry}
-      />
+      {mounted && (
+        <img
+          key={streamKey}
+          src={STREAM_URL}
+          alt="Webcam feed"
+          style={{ display: showError ? "none" : "block" }}
+          onError={scheduleRetry}
+        />
+      )}
       <GestureLabel />
     </div>
   );

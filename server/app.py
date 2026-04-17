@@ -8,7 +8,11 @@ DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 app = Flask(__name__, static_folder=DIST, static_url_path="")
 CORS(app)
 
-recognizer = HandRecognizer()
+# On macOS, Continuity Camera (iPhone) is often assigned index 0,
+# pushing the built-in FaceTime camera to index 1.
+# Override with: CAMERA_INDEX=1 python app.py
+_camera_index = int(os.environ.get("CAMERA_INDEX", 0))
+recognizer = HandRecognizer(camera_index=_camera_index)
 
 
 # ---------------------------------------------------------------------------
