@@ -193,3 +193,195 @@ Then run `pip install -r requirements.txt`.
 
 The only file you should edit is `hand_recognizer.py`, and the only part
 you need to change is the body of `classify_gesture()`.
+
+---
+
+## Full system architecture
+
+Once your model is plugged in, the complete data flow looks like this:
+
+```
+[Webcam]
+   │  OpenCV frames
+   ▼
+[HandRecognizer._loop()]          ← background thread
+   │  MediaPipe: 21 landmarks
+   ├─► classify_gesture(lm)       ← YOUR MODEL GOES HERE
+   │       │
+   │   gesture string or None
+   │       │
+   ├─► _gesture  (thread-safe)    ← read by Flask GET /gesture (display)
+   └─► _frame   (JPEG bytes)      ← read by Flask GET /stream  (video)
+          │
+          ▼
+[Operator._tracker()]             ← background thread, polls every 50 ms
+   │  compares current gesture vs. _baseline
+   │  on change: looks up key in _bindings, appends to _queue
+   ▼
+[Operator._queue]                 ← deque(maxlen=10), thread-safe
+   │
+   ▼
+[Flask GET /dispatch]             ← React polls every 100 ms
+   │  pops next key or returns null
+   ▼
+[React GestureLabel — Interval B]
+   │  document.dispatchEvent(new KeyboardEvent("keydown", { key }))
+   ▼
+[Browser / target app receives key event]
+```
+
+**React also runs Interval A** (500 ms) that polls `GET /gesture` purely for
+the visual label overlay. These two intervals are independent.
+
+---
+
+## Operator class (`gesture_operator.py`)
+
+The `Operator` is a singleton (instantiated once in `app.py`) that decouples
+gesture detection from keyboard dispatch. It adds two things the raw
+`HandRecognizer` does not provide:
+
+1. **Baseline tracking** — fires only on the *leading edge* of a gesture
+   change, not on every frame where the gesture is held.
+2. **Runtime-configurable bindings** — gesture→key pairs can be updated via
+   `POST /bind` without restarting the server or redeploying the frontend.
+
+### Baseline semantics
+
+`_baseline` stores the last gesture that was processed (dispatched or skipped).
+It advances on *every* gesture change, including to `None`.
+
+- Hand disappears → `_baseline = None`. This is the **reset state**: the next
+  time the same gesture appears it will fire again.
+- Gesture changes while hand is visible → fires once for the new gesture, then
+  no more until the gesture changes again or the hand disappears.
+
+### Thread safety
+
+A single `threading.Lock` guards `_bindings`, `_baseline`, and `_queue`.
+`current_gesture()` (called from the tracker thread) uses HandRecognizer's own
+lock internally — no deadlock risk since the two locks are independent and
+neither is held while acquiring the other.
+
+The deque has `maxlen=10`: if the frontend stops polling, old stale events
+auto-expire rather than accumulating indefinitely.
+
+### Public API
+
+| Method | Description |
+|--------|-------------|
+| `bind(gesture, key)` | Update a gesture→key binding at runtime. Thread-safe. |
+| `get_bindings()` | Return a snapshot of the current bindings dict. |
+| `next_dispatch()` | Pop and return the oldest pending key, or `None`. Called by `GET /dispatch`. |
+| `stop()` | Shut down the tracker thread cleanly. Called in `app.py`'s `finally` block. |
+
+---
+
+## POST /bind — update a gesture binding
+
+Changes a gesture→key mapping at runtime. Changes are in-memory only and reset
+on server restart.
+
+**Request:**
+```json
+{ "gesture": "thumbs_up", "key": "ArrowRight" }
+```
+
+- `gesture` — one of the recognised gesture name strings (see output table above)
+- `key` — a valid `KeyboardEvent.key` value (`"ArrowRight"`, `"Space"`, `"a"`, `"F5"`, …)
+
+**Success response:**
+```json
+{ "ok": true }
+```
+
+**Validation error (400):**
+```json
+{ "ok": false, "error": "gesture and key required" }
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:5001/bind \
+  -H "Content-Type: application/json" \
+  -d '{"gesture": "thumbs_up", "key": "a"}'
+```
+
+After this call, showing a thumbs-up will fire `KeyboardEvent { key: "a" }`
+instead of `ArrowRight` — no restart needed.
+
+---
+
+## GET /dispatch — consume the next pending key
+
+Returns the oldest key that the Operator has enqueued since the last call, or
+`null` if nothing is pending. **This is a destructive read** — each key is
+returned exactly once.
+
+**Response when a key is waiting:**
+```json
+{ "key": "ArrowRight" }
+```
+
+**Response when the queue is empty:**
+```json
+{ "key": null }
+```
+
+The React frontend polls this endpoint every **100 ms** and fires a synthetic
+`KeyboardEvent` when `key` is non-null. You do not need to call this endpoint
+yourself; it exists so the frontend can receive server-side dispatch events.
+
+---
+
+## Performance and latency
+
+| Stage | Typical time |
+|-------|-------------|
+| Camera frame captured | ~33 ms (30 fps) |
+| MediaPipe inference | ~5–15 ms (CPU) |
+| Operator tracker poll | 50 ms |
+| Frontend dispatch poll | 100 ms |
+| **Worst-case gesture → keydown** | **~150 ms** |
+
+The old client-side approach polled `GET /gesture` at 500 ms intervals, giving
+a worst-case latency of ~500 ms. The server-side Operator + 100 ms dispatch
+poll cuts this to ~150 ms.
+
+---
+
+## Server-side vs. client-side dispatch
+
+**Old approach (before Operator):** `GestureLabel.tsx` polled `GET /gesture`
+every 500 ms, compared consecutive results to detect the leading edge, and
+fired a `KeyboardEvent` in JavaScript. Problems:
+
+- 500 ms worst-case latency.
+- If two different gestures occurred between polls, the second was silently
+  missed.
+- Gesture→key mapping was hardcoded in the frontend bundle; changing it
+  required a frontend rebuild.
+
+**New approach (Operator):** The tracker thread fires at 50 ms precision and
+enqueues every leading-edge transition in a persistent in-process queue. React
+drains the queue at 100 ms. Benefits:
+
+- ~150 ms worst-case latency.
+- No missed gestures (the deque buffers up to 10 pending events).
+- Bindings are reconfigurable at runtime via `POST /bind`.
+- The queue is inspectable for debugging (add a `GET /bindings` route if needed).
+
+---
+
+## What you should NOT change (updated)
+
+| File / symbol | Reason |
+|---------------|--------|
+| `app.py` | Flask routes and server config — add to it if needed, don't rewrite |
+| `HandRecognizer.__init__`, `_loop`, `_process` | Camera loop and MediaPipe pipeline |
+| `generate_frames()` | MJPEG streaming logic |
+| `current_gesture()` | Thread-safe getter consumed by Operator and Flask |
+| `Operator._tracker` internals | Baseline logic is deliberately designed |
+| `gesture_operator.py` thread/lock structure | Thread safety is non-trivial |
+| `frontend/src/components/StreamPanel.tsx` | Stream display is complete |
+| `frontend/src/components/MappingLegend.tsx` | Legend is display-only |

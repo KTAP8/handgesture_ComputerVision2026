@@ -5,8 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/gesture": "http://localhost:5001",
-      "/stream":  "http://localhost:5001",
+      "/gesture":  "http://localhost:5001",
+      "/stream":   "http://localhost:5001",
+      "/dispatch": "http://localhost:5001",
+      "/bind":     "http://localhost:5001",
     },
   },
 });

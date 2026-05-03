@@ -8,8 +8,22 @@ export const fetchGesture = async (): Promise<string | null> => {
   return data.gesture ?? null;
 };
 
-// Fixed gesture → key mappings.
-// TODO: confirm exact keys with backend/team once gesture set is finalised.
+export const fetchDispatch = async (): Promise<string | null> => {
+  const res = await fetch(`${BASE}/dispatch`);
+  const data = (await res.json()) as { key?: string };
+  return data.key ?? null;
+};
+
+export const bindGesture = async (gesture: string, key: string): Promise<void> => {
+  await fetch(`${BASE}/bind`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gesture, key }),
+  });
+};
+
+// Display-only gesture → key reference (used by MappingLegend).
+// Keyboard dispatch is now server-driven via GET /dispatch.
 export const GESTURE_KEYS: Record<string, string> = {
   thumbs_up:   "ArrowRight",
   thumbs_down: "ArrowLeft",

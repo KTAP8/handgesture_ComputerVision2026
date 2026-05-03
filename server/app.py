@@ -1,7 +1,8 @@
 import os
-from flask import Flask, Response, jsonify, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
 from hand_recognizer import HandRecognizer
+from gesture_operator import Operator
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
@@ -13,6 +14,7 @@ CORS(app)
 # Override with: CAMERA_INDEX=1 python app.py
 _camera_index = int(os.environ.get("CAMERA_INDEX", 0))
 recognizer = HandRecognizer(camera_index=_camera_index)
+operator = Operator(recognizer)
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +39,22 @@ def gesture():
     return jsonify({"gesture": recognizer.current_gesture()})
 
 
+@app.route("/dispatch")
+def dispatch():
+    return jsonify({"key": operator.next_dispatch()})
+
+
+@app.route("/bind", methods=["POST"])
+def bind():
+    data = request.get_json(force=True)
+    gesture_name = data.get("gesture", "")
+    key = data.get("key", "")
+    if not gesture_name or not key:
+        return jsonify({"ok": False, "error": "gesture and key required"}), 400
+    operator.bind(gesture_name, key)
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -46,3 +64,4 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=5001, threaded=True)
     finally:
         recognizer.stop()
+        operator.stop()

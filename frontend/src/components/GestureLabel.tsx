@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { fetchGesture, GESTURE_KEYS } from "../api";
+import { useEffect, useState } from "react";
+import { fetchGesture, fetchDispatch } from "../api";
 
 const GESTURE_EMOJI: Record<string, string> = {
   thumbs_up:   "👍",
@@ -13,30 +13,33 @@ const GESTURE_EMOJI: Record<string, string> = {
 
 export default function GestureLabel() {
   const [gesture, setGesture] = useState<string | null>(null);
-  const prevGesture = useRef<string | null>(null);
 
+  // Interval A: display — update the visual label every 500ms
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const g = await fetchGesture();
-        setGesture(g);
-
-        // Dispatch a keydown event on leading edge (gesture first appears)
-        const isNew = g && g !== "none" && g !== prevGesture.current;
-        if (isNew) {
-          const key = GESTURE_KEYS[g];
-          if (key) {
-            document.dispatchEvent(
-              new KeyboardEvent("keydown", { key, bubbles: true })
-            );
-          }
-        }
-
-        prevGesture.current = g;
+        setGesture(await fetchGesture());
       } catch {
         // silently ignore fetch errors
       }
     }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // Interval B: dispatch — drain server-side key queue every 100ms
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const key = await fetchDispatch();
+        if (key) {
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", { key, bubbles: true })
+          );
+        }
+      } catch {
+        // silently ignore fetch errors
+      }
+    }, 100);
     return () => clearInterval(id);
   }, []);
 
