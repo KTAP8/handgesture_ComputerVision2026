@@ -13,22 +13,17 @@ const GESTURE_EMOJI: Record<string, string> = {
 export default function MappingLegend() {
   return (
     <div className="mapping-legend">
-      <h2>Gesture Map</h2>
+      <p className="section-label">Key Map</p>
       <table className="mapping-table">
-        <thead>
-          <tr>
-            <th>Gesture</th>
-            <th>Key</th>
-          </tr>
-        </thead>
         <tbody>
           {Object.entries(GESTURE_KEYS).map(([gesture, key]) => (
             <tr key={gesture}>
               <td className="gesture-name">
-                {GESTURE_EMOJI[gesture] ?? "🤚"} {gesture}
+                <span className="gesture-name-emoji">{GESTURE_EMOJI[gesture] ?? "🤚"}</span>
+                {gesture}
               </td>
               <td>
-                <kbd className="key-badge">{key}</kbd>
+                <span className="key-badge">{key}</span>
               </td>
             </tr>
           ))}

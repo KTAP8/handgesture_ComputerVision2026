@@ -5,133 +5,246 @@
 }
 
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --border: #2e3244;
-  --accent: #6c8cff;
-  --text: #e2e4ef;
-  --text-muted: #6b7280;
-  --radius: 8px;
+  --bg:            oklch(96.5% 0.008 72);
+  --surface:       oklch(98.5% 0.004 72);
+  --border:        oklch(84% 0.012 248);
+  --border-strong: oklch(62% 0.018 248);
+  --text:          oklch(14% 0.012 258);
+  --text-muted:    oklch(50% 0.014 258);
+  --text-faint:    oklch(72% 0.010 258);
+  --accent:        oklch(62% 0.145 50);
+  --accent-bg:     oklch(93.5% 0.042 72);
+  --accent-border: oklch(76% 0.09 58);
+  --key-fg:        oklch(38% 0.095 258);
+  --key-bg:        oklch(93% 0.014 258);
+  --live:          oklch(58% 0.18 145);
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-family: "Space Grotesk", sans-serif;
   font-size: 14px;
-  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Layout */
+/* ─── Layout ─────────────────────────────────────────────────────── */
 
 .app {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   min-height: 100vh;
 }
 
 .app-header {
-  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
-.app-header h1 {
-  font-size: 16px;
+.app-header-title {
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--text);
+}
+
+.app-header-title span {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 10px;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.app-header-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--live);
 }
 
 .app-main {
-  display: flex;
-  flex: 1;
-  gap: 24px;
-  padding: 24px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 0;
+  overflow: hidden;
 }
 
-/* Stream Panel */
+/* ─── Stream Panel ────────────────────────────────────────────────── */
 
 .stream-panel {
   position: relative;
-  flex: 1;
-  min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
+  background: oklch(10% 0.005 258);
+  border-right: 1px solid var(--border);
 }
 
 .stream-panel img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
   display: block;
 }
 
 .stream-unavailable {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 4 / 3;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  color: var(--text-muted);
+  gap: 10px;
+  color: oklch(55% 0.01 258);
 }
 
-.stream-unavailable span {
-  font-size: 40px;
-  filter: grayscale(1) opacity(0.4);
+.stream-unavailable-icon {
+  font-size: 32px;
+  opacity: 0.35;
+}
+
+.stream-unavailable p {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .stream-unavailable-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  opacity: 0.6;
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  opacity: 0.5;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-/* Gesture Label */
+/* Corner registration marks on camera */
+.corner-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
 
+.corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+}
+
+.corner.tl { top: 14px;    left: 14px;    border-top:    1.5px solid var(--accent); border-left:   1.5px solid var(--accent); }
+.corner.tr { top: 14px;    right: 14px;   border-top:    1.5px solid var(--accent); border-right:  1.5px solid var(--accent); }
+.corner.bl { bottom: 14px; left: 14px;    border-bottom: 1.5px solid var(--accent); border-left:   1.5px solid var(--accent); }
+.corner.br { bottom: 14px; right: 14px;   border-bottom: 1.5px solid var(--accent); border-right:  1.5px solid var(--accent); }
+
+/* Gesture label overlay on video */
 .gesture-label {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  transition: opacity 0.2s;
+  bottom: 14px;
+  left: 14px;
+  z-index: 3;
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(94% 0.005 72);
+  background: oklch(12% 0.006 258 / 0.72);
+  padding: 4px 9px;
+  border-left: 2px solid var(--accent);
 }
 
 .gesture-label[data-empty="true"] {
-  color: var(--text-muted);
-  font-weight: 400;
+  color: oklch(60% 0.008 258);
+  border-left-color: oklch(45% 0.008 258);
 }
 
-/* Mapping Legend */
+/* ─── Side Panel ──────────────────────────────────────────────────── */
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+/* ─── Gesture Readout ─────────────────────────────────────────────── */
+
+.gesture-readout {
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.readout-state {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.readout-state[data-active="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.readout-emoji {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.readout-name {
+  font-family: "Space Mono", monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.readout-name[data-empty="true"] {
+  font-size: 22px;
+  color: var(--text-faint);
+  font-weight: 400;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+/* ─── Mapping Legend ──────────────────────────────────────────────── */
 
 .mapping-legend {
-  width: 300px;
-  flex-shrink: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+  padding: 24px;
+  flex: 1;
 }
 
-.mapping-legend h2 {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
+.mapping-legend .section-label {
   margin-bottom: 16px;
 }
 
@@ -140,37 +253,38 @@ body {
   border-collapse: collapse;
 }
 
-.mapping-table th {
-  text-align: left;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  padding-bottom: 10px;
+.mapping-table tr {
   border-bottom: 1px solid var(--border);
 }
 
-.mapping-table td {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
-
-.mapping-table tr:last-child td {
+.mapping-table tr:last-child {
   border-bottom: none;
 }
 
+.mapping-table td {
+  padding: 9px 0;
+  vertical-align: middle;
+}
+
 .gesture-name {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text);
 }
 
+.gesture-name-emoji {
+  margin-right: 6px;
+  font-size: 13px;
+}
+
 .key-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  background: var(--bg);
+  font-family: "Space Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--key-fg);
+  background: var(--key-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--accent);
+  padding: 2px 7px;
+  float: right;
 }
