@@ -248,33 +248,56 @@ body {
   margin-bottom: 16px;
 }
 
-.mapping-table {
-  width: 100%;
-  border-collapse: collapse;
+.mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.mapping-table tr {
+.mapping-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.mapping-table tr:last-child {
+.mapping-row:last-child {
   border-bottom: none;
 }
 
-.mapping-table td {
-  padding: 9px 0;
-  vertical-align: middle;
+.mapping-emoji {
+  font-size: 20px;
+  line-height: 1.3;
+  flex-shrink: 0;
+  width: 26px;
+  text-align: center;
 }
 
-.gesture-name {
+.mapping-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mapping-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mapping-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text);
+  letter-spacing: 0.02em;
 }
 
-.gesture-name-emoji {
-  margin-right: 6px;
-  font-size: 13px;
+.mapping-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .key-badge {
@@ -286,5 +309,5 @@ body {
   background: var(--key-bg);
   border: 1px solid var(--border);
   padding: 2px 7px;
-  float: right;
+  flex-shrink: 0;
 }

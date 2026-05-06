@@ -2,33 +2,44 @@ import collections
 import threading
 import time
 
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    _PYAUTOGUI_AVAILABLE = True
+except ImportError:
+    _PYAUTOGUI_AVAILABLE = False
+
+# pyautogui key names (different from JS KeyboardEvent key names).
 DEFAULT_BINDINGS: dict[str, str] = {
-    "thumbs_up":   "ArrowRight",
-    "thumbs_down": "ArrowLeft",
-    "peace":       "ArrowUp",
-    "fist":        "ArrowDown",
-    "open_hand":   "Space",
-    "point_up":    "Enter",
-    "ok":          "Escape",
+    "thumbs_up":   "right",   # next slide
+    "thumbs_down": "left",    # previous slide
+    "open_hand":   "esc",     # exit presentation
+    "point_up":    "f5",      # start / enter full-screen
+    "ok":          "b",       # blank / unblank screen
+}
+
+# JS KeyboardEvent equivalents — kept for the frontend display label only.
+_JS_KEY: dict[str, str] = {
+    "right": "ArrowRight",
+    "left":  "ArrowLeft",
+    "esc":   "Escape",
+    "f5":    "F5",
+    "b":     "b",
 }
 
 
 class Operator:
     """
-    Singleton that tracks gesture changes from a baseline and enqueues
-    keyboard actions for the frontend to consume via GET /dispatch.
+    Tracks gesture changes and fires OS-level keystrokes via pyautogui.
 
     The tracker thread polls HandRecognizer.current_gesture() every
     poll_interval seconds. When the gesture changes from the stored
-    baseline, the dispatcher looks up the key binding and appends it
-    to the dispatch queue.
+    baseline, the key is pressed at the OS level (affects any focused app,
+    including PowerPoint/Keynote) and also queued for the frontend to
+    display via GET /dispatch.
 
-    Baseline semantics:
-    - Advances on every gesture change, including to None.
-    - None is the "reset" state: it allows the same gesture to re-fire
-      after the hand disappears and reappears.
-    - maxlen=10 on the deque prevents unbounded growth if the frontend
-      is slow or stopped.
+    Baseline semantics: advances on every change including to None, so
+    the same gesture re-fires after the hand disappears and reappears.
     """
 
     def __init__(self, recognizer, poll_interval: float = 0.05) -> None:
@@ -49,17 +60,15 @@ class Operator:
     # ------------------------------------------------------------------
 
     def bind(self, gesture: str, key: str) -> None:
-        """Update the gesture→key binding at runtime."""
         with self._lock:
             self._bindings[gesture] = key
 
     def get_bindings(self) -> dict[str, str]:
-        """Return a snapshot of the current bindings."""
         with self._lock:
             return dict(self._bindings)
 
     def next_dispatch(self) -> str | None:
-        """Pop and return the oldest pending key, or None if the queue is empty."""
+        """Pop the oldest pending JS key name for the frontend display."""
         with self._lock:
             return self._queue.popleft() if self._queue else None
 
@@ -68,7 +77,7 @@ class Operator:
         self._thread.join()
 
     # ------------------------------------------------------------------
-    # Internal tracker loop (runs in daemon thread)
+    # Internal tracker loop
     # ------------------------------------------------------------------
 
     def _tracker(self) -> None:
@@ -79,6 +88,15 @@ class Operator:
                     if current is not None:
                         key = self._bindings.get(current)
                         if key:
-                            self._queue.append(key)
+                            self._press(key)
+                            js_key = _JS_KEY.get(key, key)
+                            self._queue.append(js_key)
                     self._baseline = current
             time.sleep(self._poll_interval)
+
+    def _press(self, key: str) -> None:
+        if _PYAUTOGUI_AVAILABLE:
+            try:
+                pyautogui.press(key)
+            except Exception:
+                pass

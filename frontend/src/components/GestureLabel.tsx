@@ -4,11 +4,9 @@ import { fetchGesture, fetchDispatch } from "../api";
 const GESTURE_EMOJI: Record<string, string> = {
   thumbs_up:   "👍",
   thumbs_down: "👎",
-  peace:       "✌️",
-  fist:        "✊",
   open_hand:   "🖐️",
   point_up:    "☝️",
-  ok:          "👌",
+  ok:          "🤟",
 };
 
 export default function GestureLabel() {

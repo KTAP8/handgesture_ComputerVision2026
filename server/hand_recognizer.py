@@ -65,7 +65,7 @@ _GESTURE_MAP: dict[str, str] = {
     "Closed_Fist": "fist",
     "Open_Palm":   "open_hand",
     "Pointing_Up": "point_up",
-    "Ok":          "ok",
+    "ILoveYou":    "ok",
 }
 
 
@@ -92,8 +92,9 @@ class HandRecognizer:
 
         options = mp_vision.GestureRecognizerOptions(
             base_options=mp_python.BaseOptions(model_asset_path=MODEL_PATH),
+            running_mode=mp_vision.RunningMode.VIDEO,
             num_hands=1,
-            min_hand_detection_confidence=0.6,
+            min_hand_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
         self._detector = mp_vision.GestureRecognizer.create_from_options(options)
@@ -157,7 +158,8 @@ class HandRecognizer:
 
             frame = cv2.flip(frame, 1)  # mirror so left/right feel natural
 
-            gesture = self._process(frame)
+            timestamp_ms = int(time.time() * 1000)
+            gesture = self._process(frame, timestamp_ms)
 
             _, jpeg = cv2.imencode(".jpg", frame)
             with self._lock:
@@ -168,25 +170,22 @@ class HandRecognizer:
     # Core image processing pipeline
     # ------------------------------------------------------------------
 
-    def _process(self, frame: np.ndarray) -> str | None:
+    def _process(self, frame: np.ndarray, timestamp_ms: int) -> str | None:
         """
         Run the full CV pipeline on one frame.  Annotates the frame in-place
         and returns the recognised gesture string (or None).
         """
         h, w = frame.shape[:2]
 
-        # CLAHE needs a single channel, so grayscale first. After applying it,
-        # Gaussian blur knocks out sensor noise before MediaPipe runs — without
-        # this step, detection noticeably degrades in dim or uneven lighting.
+        # Feed the raw color frame to MediaPipe — the model was trained on
+        # natural images; CLAHE (grayscale conversion) degrades detection.
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        result = self._detector.recognize_for_video(mp_image, timestamp_ms)
+
+        # CLAHE for visualization overlays only (skin mask, Canny, Sobel).
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         enhanced = self._clahe.apply(gray)
-        enhanced_bgr = cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR)
-        preprocessed = cv2.GaussianBlur(enhanced_bgr, (5, 5), 0)
-
-        # Feed the preprocessed frame into MediaPipe, not the raw one.
-        rgb = cv2.cvtColor(preprocessed, cv2.COLOR_BGR2RGB)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        result = self._detector.recognize(mp_image)
 
         # HSV thresholding for skin. The hue channel is less affected by shadows
         # and highlights than BGR, so the mask stays usable as lighting shifts.
