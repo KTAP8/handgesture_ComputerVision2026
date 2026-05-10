@@ -12,6 +12,8 @@ const GESTURE_EMOJI: Record<string, string> = {
 export default function GestureReadout() {
   const [gesture, setGesture] = useState<string | null>(null);
 
+  // Poll the server for the current gesture every 500ms.
+  // Errors are swallowed so a dropped connection doesn't break the UI.
   useEffect(() => {
     const id = setInterval(async () => {
       try {

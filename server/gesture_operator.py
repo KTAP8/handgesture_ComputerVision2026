@@ -4,9 +4,13 @@ import time
 
 try:
     import pyautogui
+    # Disable the failsafe corner so a hand near the screen edge
+    # doesn't abort the process unexpectedly.
     pyautogui.FAILSAFE = False
     _PYAUTOGUI_AVAILABLE = True
 except ImportError:
+    # pyautogui is optional — the app still works without it,
+    # keystrokes just won't be sent to other applications.
     _PYAUTOGUI_AVAILABLE = False
 
 # pyautogui key names (different from JS KeyboardEvent key names).
@@ -18,7 +22,8 @@ DEFAULT_BINDINGS: dict[str, str] = {
     "ok":          "b",       # blank / unblank screen
 }
 
-# JS KeyboardEvent equivalents — kept for the frontend display label only.
+# Translation table from pyautogui key names to JS KeyboardEvent.key values.
+# Only used for the frontend display — the OS keystroke goes through pyautogui.
 _JS_KEY: dict[str, str] = {
     "right": "ArrowRight",
     "left":  "ArrowLeft",
@@ -49,6 +54,7 @@ class Operator:
         self._lock = threading.Lock()
         self._bindings: dict[str, str] = dict(DEFAULT_BINDINGS)
         self._baseline: str | None = None
+        # maxlen=10 so a burst of rapid gestures can't build up an unbounded backlog.
         self._queue: collections.deque[str] = collections.deque(maxlen=10)
 
         self._running = True
@@ -99,4 +105,6 @@ class Operator:
             try:
                 pyautogui.press(key)
             except Exception:
+                # Swallow any platform-level errors (e.g. no display on headless machines)
+                # so they don't crash the tracker thread.
                 pass

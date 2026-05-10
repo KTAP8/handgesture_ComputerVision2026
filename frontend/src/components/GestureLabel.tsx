@@ -12,7 +12,8 @@ const GESTURE_EMOJI: Record<string, string> = {
 export default function GestureLabel() {
   const [gesture, setGesture] = useState<string | null>(null);
 
-  // Interval A: display — update the visual label every 500ms
+  // Update the displayed gesture label every 500ms. This doesn't need to be
+  // faster because it's purely visual — the user can't perceive sub-500ms changes.
   useEffect(() => {
     const id = setInterval(async () => {
       try {
@@ -24,7 +25,9 @@ export default function GestureLabel() {
     return () => clearInterval(id);
   }, []);
 
-  // Interval B: dispatch — drain server-side key queue every 100ms
+  // Drain the server's keystroke queue at 100ms so gestures feel responsive.
+  // We re-fire the key as a DOM event so any focused element (e.g. a presentation
+  // tool running in another window) can react to it via pyautogui on the server side.
   useEffect(() => {
     const id = setInterval(async () => {
       try {
